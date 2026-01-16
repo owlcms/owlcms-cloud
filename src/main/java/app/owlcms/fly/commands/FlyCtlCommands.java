@@ -356,7 +356,15 @@ public class FlyCtlCommands {
 			ProcessBuilder builder = createProcessBuilder(getToken());
 
 			// these can be overridden by the env pairs
-			builder.environment().put("VERSION", app.getReferenceVersion());
+			String referenceVersion = app.getReferenceVersion();
+			if (referenceVersion == null || referenceVersion.isBlank() || referenceVersion.equalsIgnoreCase("unknown")) {
+				String fallbackVersion = app.getCurrentVersion();
+				if (fallbackVersion == null || fallbackVersion.isBlank()) {
+					fallbackVersion = "stable";
+				}
+				referenceVersion = fallbackVersion;
+			}
+			builder.environment().put("VERSION", referenceVersion);
 			if (app.regionCode != null && !app.regionCode.isBlank()) {
 				builder.environment().put("REGION", app.regionCode);
 			}

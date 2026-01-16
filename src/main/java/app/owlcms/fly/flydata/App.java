@@ -15,7 +15,11 @@ public class App implements Comparable<App> {
         this.name = s;
         this.appType = appType;
         this.regionCode = region;
-        this.versionInfo = new VersionInfo(version);
+        if (appType != null && appType.releaseApiUrl != null && !appType.releaseApiUrl.isBlank()) {
+            this.versionInfo = new VersionInfo(version, appType.releaseApiUrl);
+        } else {
+            this.versionInfo = new VersionInfo(version);
+        }
         this.machine = machine;
         this.stopped = status == null ? true : status.equalsIgnoreCase("stopped");
     }

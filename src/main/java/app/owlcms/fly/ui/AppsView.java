@@ -650,18 +650,19 @@ public class AppsView extends VerticalLayout {
 	}
 
 	private String getLatestReleaseVersion(AppType appType) {
+		if (appType == null || appType.releaseApiUrl == null) {
+			return "unknown";
+		}
 		return switch (appType) {
 			case TRACKER -> {
 				if (cachedTrackerVersion == null) {
-					cachedTrackerVersion = VersionInfo
-							.fastFetchLatestReleaseVersion("https://api.github.com/repos/jflamy/owlcms-tracker/releases");
+					cachedTrackerVersion = VersionInfo.fastFetchLatestReleaseVersion(appType.releaseApiUrl);
 				}
 				yield cachedTrackerVersion;
 			}
 			default -> {
 				if (cachedOwlcmsVersion == null) {
-					cachedOwlcmsVersion = VersionInfo
-							.fastFetchLatestReleaseVersion("https://api.github.com/repos/owlcms/owlcms4/releases");
+					cachedOwlcmsVersion = VersionInfo.fastFetchLatestReleaseVersion(appType.releaseApiUrl);
 				}
 				yield cachedOwlcmsVersion;
 			}
