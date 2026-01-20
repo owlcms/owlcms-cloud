@@ -25,6 +25,7 @@ import app.owlcms.fly.flydata.App;
 import app.owlcms.fly.flydata.AppType;
 import app.owlcms.fly.flydata.EarthLocation;
 import app.owlcms.fly.ui.ExecArea;
+import app.owlcms.fly.ui.LogDialog;
 
 public class FlyCtlCommands {
 	int appNameStatus;
@@ -35,11 +36,17 @@ public class FlyCtlCommands {
 	private Map<AppType, App> appMap;
 	private Path configFile;
 	private ExecArea execArea;
+	private LogDialog logDialog;
 	private UI ui;
 
 	public FlyCtlCommands(UI ui, ExecArea execArea) {
 		this.ui = ui;
 		this.execArea = execArea;
+	}
+
+	public FlyCtlCommands(UI ui, LogDialog logDialog) {
+		this.ui = ui;
+		this.logDialog = logDialog;
 	}
 
 	public void appCreate(App app, Runnable callback) {
@@ -183,9 +190,17 @@ public class FlyCtlCommands {
 
 	public void doSetSharedKey(String value) {
 		UI ui = UI.getCurrent();
-		execArea.setVisible(true);
+		if (logDialog != null) {
+			ui.access(() -> logDialog.show());
+		} else if (execArea != null) {
+			execArea.setVisible(true);
+		}
 		new Thread(() -> {
-			execArea.clear(ui);
+			if (logDialog != null) {
+				logDialog.clear(ui);
+			} else if (execArea != null) {
+				execArea.clear(ui);
+			}
 				for (App app : appMap.values()) {
 				if (app.appType != AppType.OWLCMS && app.appType != AppType.PUBLICRESULTS && app.appType != AppType.TRACKER) {
 					continue;
@@ -194,11 +209,19 @@ public class FlyCtlCommands {
 					hostNameStatus = 0;
 					String commandString = "fly secrets set OWLCMS_UPDATEKEY='" + value + "' --app " + app.name;
 					Consumer<String> outputConsumer = (string) -> {
-						execArea.append(string, ui);
+						if (logDialog != null) {
+							logDialog.append(string, ui);
+						} else if (execArea != null) {
+							execArea.append(string, ui);
+						}
 					};
 					Consumer<String> errorConsumer = (string) -> {
 						hostNameStatus = -1;
-						execArea.appendError(string, ui);
+						if (logDialog != null) {
+							logDialog.appendError(string, ui);
+						} else if (execArea != null) {
+							execArea.appendError(string, ui);
+						}
 					};
 					runCommand("setting secret {}", commandString, outputConsumer, errorConsumer, true, null);
 				} catch (Exception e) {
@@ -213,11 +236,19 @@ public class FlyCtlCommands {
 						hostNameStatus = 0;
 						String commandString = "fly secrets set OWLCMS_REMOTE='" + name + "' --app " + app.name;
 						Consumer<String> outputConsumer = (string) -> {
+						if (logDialog != null) {
+							logDialog.append(string, ui);
+						} else if (execArea != null) {
 							execArea.append(string, ui);
-						};
-						Consumer<String> errorConsumer = (string) -> {
-							hostNameStatus = -1;
+						}
+					};
+					Consumer<String> errorConsumer = (string) -> {
+						hostNameStatus = -1;
+						if (logDialog != null) {
+							logDialog.appendError(string, ui);
+						} else if (execArea != null) {
 							execArea.appendError(string, ui);
+						}
 						};
 						runCommand("setting secret {}", commandString, outputConsumer, errorConsumer, true, null);
 
@@ -227,8 +258,21 @@ public class FlyCtlCommands {
 							String wssUrl = "wss://" + tracker.name + ".fly.dev/ws";
 							hostNameStatus = 0;
 							String vdCommand = "fly secrets set OWLCMS_VIDEODATA='" + wssUrl + "' --app " + app.name;
-							Consumer<String> vdOut = (string) -> execArea.append(string, ui);
-							Consumer<String> vdErr = (string) -> { hostNameStatus = -1; execArea.appendError(string, ui); };
+						Consumer<String> vdOut = (string) -> {
+							if (logDialog != null) {
+								logDialog.append(string, ui);
+							} else if (execArea != null) {
+								execArea.append(string, ui);
+							}
+						};
+						Consumer<String> vdErr = (string) -> {
+							hostNameStatus = -1;
+							if (logDialog != null) {
+								logDialog.appendError(string, ui);
+							} else if (execArea != null) {
+								execArea.appendError(string, ui);
+							}
+						};
 							runCommand("setting secret {}", vdCommand, vdOut, vdErr, true, null);
 						}
 					} catch (Exception e) {
@@ -240,20 +284,23 @@ public class FlyCtlCommands {
 				Thread.sleep(5000);
 			} catch (InterruptedException e) {
 			}
-			ui.access(() -> execArea.setVisible(false));
+			// Don't auto-hide the log dialog, let user close it
+			if (execArea != null) {
+				ui.access(() -> execArea.setVisible(false));
+			}
 		}).start();
 	}
 
 	public synchronized Map<AppType, App> getApps() throws NoPermissionException {
 		ProcessBuilder builder = createProcessBuilder(getToken());
-		List<String> appNames = getAppNames(builder, execArea, UI.getCurrent());
+		List<String> appNames = getAppNames(builder, UI.getCurrent());
 		appMap = buildAppMap(builder, appNames);
 		return appMap;
 	}
 
 	public synchronized List<EarthLocation> getServerLocations(EarthLocation clientLocation) {
 		ProcessBuilder builder = createProcessBuilder(getToken());
-		List<EarthLocation> locations = getLocations(builder, execArea, UI.getCurrent());
+		List<EarthLocation> locations = getLocations(builder, UI.getCurrent());
 		if (clientLocation != null) {
 			for (EarthLocation l : locations) {
 				l.calculateDistance(clientLocation);
@@ -350,8 +397,13 @@ public class FlyCtlCommands {
 	 */
 	private void doAppCommand(App app, String commandString, Runnable callback, String... envPairs) {
 		UI ui = UI.getCurrent();
-		execArea.setVisible(true);
-		execArea.clear(ui);
+		if (logDialog != null) {
+			ui.access(() -> logDialog.show());
+			logDialog.clear(ui);
+		} else if (execArea != null) {
+			execArea.setVisible(true);
+			execArea.clear(ui);
+		}
 		new Thread(() -> {
 			ProcessBuilder builder = createProcessBuilder(getToken());
 
@@ -379,22 +431,33 @@ public class FlyCtlCommands {
 
 			try {
 				Consumer<String> outputConsumer = (string) -> {
-					execArea.append(string, ui);
+					if (logDialog != null) {
+						logDialog.append(string, ui);
+					} else if (execArea != null) {
+						execArea.append(string, ui);
+					}
 				};
 				Consumer<String> errorConsumer = (string) -> {
-					execArea.appendError(string, ui);
+					if (logDialog != null) {
+						logDialog.appendError(string, ui);
+					} else if (execArea != null) {
+						execArea.appendError(string, ui);
+					}
 				};
 				runCommand("**** running command {}", commandString, outputConsumer, errorConsumer, builder,
 						callback);
 				Thread.sleep(5000);
-				ui.access(() -> execArea.setVisible(false));
+				// Don't auto-hide the log dialog, let user close it
+				if (execArea != null) {
+					ui.access(() -> execArea.setVisible(false));
+				}
 			} catch (Exception e) {
 				e.printStackTrace();
 			}
 		}).start();
 	}
 
-	private synchronized List<String> getAppNames(ProcessBuilder builder, ExecArea execArea, UI ui)
+	private synchronized List<String> getAppNames(ProcessBuilder builder, UI ui)
 			throws NoPermissionException {
 		List<String> appNames = new ArrayList<>();
 		setReason("");
@@ -409,7 +472,11 @@ public class FlyCtlCommands {
 			Consumer<String> errorConsumer = (string) -> {
 				appNameStatus = -1;
 				setReason(string);
-				execArea.appendError(string, ui);
+				if (logDialog != null) {
+					logDialog.appendError(string, ui);
+				} else if (execArea != null) {
+					execArea.appendError(string, ui);
+				}
 				reason = string;
 			};
 			runCommand("retrieving app names {}", commandString, outputConsumer, errorConsumer, true, null);
@@ -421,7 +488,7 @@ public class FlyCtlCommands {
 		return appNames;
 	}
 
-	private synchronized List<EarthLocation> getLocations(ProcessBuilder builder, ExecArea execArea, UI ui)
+	private synchronized List<EarthLocation> getLocations(ProcessBuilder builder, UI ui)
 			throws NoPermissionException {
 		List<EarthLocation> locations = new ArrayList<>();
 		appNameStatus = 0;
@@ -434,7 +501,11 @@ public class FlyCtlCommands {
 			};
 			Consumer<String> errorConsumer = (string) -> {
 				appNameStatus = -1;
-				execArea.appendError(string, ui);
+				if (logDialog != null) {
+					logDialog.appendError(string, ui);
+				} else if (execArea != null) {
+					execArea.appendError(string, ui);
+				}
 			};
 			runCommand("getting locations {}", commandString, outputConsumer, errorConsumer, true, null);
 		} catch (Exception e) {

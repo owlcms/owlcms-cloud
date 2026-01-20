@@ -1,13 +1,14 @@
 {
 	"folders": [
 		{
-			"uri": "vscode-remote://wsl+ubuntu-20.04/mnt/c/Dev/git/fly-owlcms"
+			"uri": "vscode-remote://wsl+Ubuntu/home/owlcms/git/fly-owlcms"
 		}
 	],
-	"remoteAuthority": "wsl+Ubuntu-20.04",
+	"remoteAuthority": "wsl+Ubuntu",
 	"settings": {
 		"java.project.explorer.showNonJavaResources": true,
 		"java.compile.nullAnalysis.mode": "automatic",
-		"java.configuration.updateBuildConfiguration": "interactive"
+		"java.configuration.updateBuildConfiguration": "interactive",
+		"java.configuration.runtimes": []
 	}
 }

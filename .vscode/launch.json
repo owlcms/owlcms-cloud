@@ -6,17 +6,18 @@
     "configurations": [
         {
             "type": "java",
+            "name": "fly-owlcms hotswap",
+            "request": "launch",
+            "mainClass": "app.owlcms.fly.Main",
+            "vmArgs": "-Dserver.port=8084 -XX:+AllowEnhancedClassRedefinition -XX:HotswapAgent=fatjar",
+            "projectName": "fly-manager",
+            "console": "internalConsole"
+        },
+        {
+            "type": "java",
             "name": "No Options",
             "request": "launch",
             "mainClass": "${file}"
         },
-        {
-            "type": "java",
-            "name": "fly-owlcms",
-            "request": "launch",
-            "mainClass": "app.owlcms.fly.Main",
-            "vmArgs": "-Dserver.port=8084 -XX:+AllowEnhancedClassRedefinition -XX:HotswapAgent=fatjar -javaagent:/home/owlcms/.sdkman/candidates/java/current/lib/hotswap/hotswap-agent.jar",
-            "projectName": "fly-manager"
-        }
     ]
 }

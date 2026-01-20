@@ -50,7 +50,7 @@ public class AppsView extends VerticalLayout {
 	private long lastClick = 0;
 	@SuppressWarnings("unused")
 	final private Logger logger = LoggerFactory.getLogger(AppsView.class);
-	private ExecArea execArea;
+	private LogDialog logDialog;
 	private FlyCtlCommands flyCommands;
 	private VerticalLayout intro;
 	private VerticalLayout apps;
@@ -63,10 +63,8 @@ public class AppsView extends VerticalLayout {
 
 	public AppsView() {
 		clientIpString = getClientIp();
-		execArea = new ExecArea();
-		execArea.setVisible(false);
-		execArea.setSizeFull();
-		flyCommands = new FlyCtlCommands(UI.getCurrent(), execArea);
+		logDialog = new LogDialog();
+		flyCommands = new FlyCtlCommands(UI.getCurrent(), logDialog);
 		if (flyCommands.getToken() == null) {
 			Login loginOverlay = new Login(flyCommands);
 			loginOverlay.setCallback(() -> {
@@ -102,7 +100,7 @@ public class AppsView extends VerticalLayout {
 
 		intro = buildIntro();
 		apps = buildAppsPlaceholder();
-		add(new HorizontalLayout(title, logoutButton), intro, apps, execArea);
+		add(new HorizontalLayout(title, logoutButton), intro, apps);
 		UI ui = UI.getCurrent();
 		doListApplications(apps, ui);
 	}
@@ -147,16 +145,16 @@ public class AppsView extends VerticalLayout {
 				Map<AppType, App> apps2 = flyCommands.getApps();
 				App dbApp = apps2.get(AppType.DB);
 				if (dbApp != null) {
-					execArea.append("Deleting OWLCMS " + app.name, UI.getCurrent());
-					flyCommands.appDestroy(app, null);
-					execArea.append("Deleting OWLCMS database " + dbApp.name, UI.getCurrent());
-					flyCommands.appDestroy(dbApp, callback);
-				} else {
-					execArea.append("Deleting OWLCMS - no database " + app.name, UI.getCurrent());
+				logDialog.append("Deleting OWLCMS " + app.name, UI.getCurrent());
+				flyCommands.appDestroy(app, null);
+				logDialog.append("Deleting OWLCMS database " + dbApp.name, UI.getCurrent());
+				flyCommands.appDestroy(dbApp, callback);
+			} else {
+				logDialog.append("Deleting OWLCMS - no database " + app.name, UI.getCurrent());
 					flyCommands.appDestroy(app, callback);
 				}
 			} else {
-				execArea.append("Deleting PUBLICRESULTS " + app.name, UI.getCurrent());
+				logDialog.append("Deleting PUBLICRESULTS " + app.name, UI.getCurrent());
 				flyCommands.appDestroy(app, callback);
 			}
 		});
@@ -205,16 +203,16 @@ public class AppsView extends VerticalLayout {
 				Map<AppType, App> apps2 = flyCommands.getApps();
 				App dbApp = apps2.get(AppType.DB);
 				if (dbApp != null) {
-					execArea.append("Stopping OWLCMS " + app.name, UI.getCurrent());
-					flyCommands.appStop(app, null);
-					execArea.append("Stopping OWLCMS database " + dbApp.name, UI.getCurrent());
-					flyCommands.appStop(dbApp, callback);
-				} else {
-					execArea.append("Stopping OWLCMS - no database " + app.name, UI.getCurrent());
+				logDialog.append("Stopping OWLCMS " + app.name, UI.getCurrent());
+				flyCommands.appStop(app, null);
+				logDialog.append("Stopping OWLCMS database " + dbApp.name, UI.getCurrent());
+				flyCommands.appStop(dbApp, callback);
+			} else {
+				logDialog.append("Stopping OWLCMS - no database " + app.name, UI.getCurrent());
 					flyCommands.appStop(app, callback);
 				}
 			} else {
-				execArea.append("Stopping PUBLICRESULTS " + app.name, UI.getCurrent());
+				logDialog.append("Stopping PUBLICRESULTS " + app.name, UI.getCurrent());
 				flyCommands.appStop(app, callback);
 			}
 		});
@@ -268,9 +266,9 @@ public class AppsView extends VerticalLayout {
 		lastClick = timeMillis;
 
 		appsArea.removeAll();
-		execArea.clear(ui);
-		execArea.setVisible(true);
-		execArea.append("Retrieving your application configurations. Please wait.", ui);
+		logDialog.clear(ui);
+		logDialog.show();
+		logDialog.append("Retrieving your application configurations. Please wait.", ui);
 		ui.push();
 
 		new Thread(() -> {
@@ -287,8 +285,26 @@ public class AppsView extends VerticalLayout {
 
 			ui.access(() -> {
 				showApps(appsList, appsArea);
-				execArea.clear(ui);
-				execArea.setVisible(false);
+				logDialog.clear(ui);
+				logDialog.hide();
+			});
+		}).start();
+	}
+
+	private void doSilentListRefresh(VerticalLayout appsArea, UI ui) {
+		new Thread(() -> {
+			Map<AppType, App> appsList = flyCommands.getApps();
+			regionCode = null;
+			for (App app : appsList.values()) {
+				if (app.regionCode != null && !app.regionCode.isBlank()) {
+					regionCode = app.regionCode;
+				}
+				break;
+			}
+
+			ui.access(() -> {
+				appsArea.removeAll();
+				showApps(appsList, appsArea);
 			});
 		}).start();
 	}
@@ -340,25 +356,30 @@ public class AppsView extends VerticalLayout {
 			case OWLCMS ->
 				"""
 					<ul style="line-height: 1.4; width: 45em; margin: 0; padding-left: 1em;">
-						<li>OWLCMS runs the competition.
-						<li><u>You don't need to create this if you are running OWLCMS locally on a laptop</u> and only want remote scoreboards.
+						<li>OWLCMS runs the competition and drives the screens used at the site.
+						<li><u>You don't need OWLCMS in the cloud if you are running OWLCMS on a laptop at the site</u> and only want remote scoreboards.
+					</ul>
+				""";
+				case TRACKER ->
+				"""
+					<ul style="line-height: 1.4; width: 45em; margin: 0; padding-left: 1em;">
+						<li>When running in the cloud, TRACKER is used to show scoreboards to anyone on the internet.
+						<li><u>You don't need TRACKER in the cloud if you don't want remote scoreboards.</u>
+						<li><b>Note: TRACKER requires OWLCMS version 64 or later</b></li>
+						<li>To use TRACKER, you need to provide websocket connection URLs in OWLCMS</li>
+						<ul>
+							<li>Go to the Languages and System Settings page in OWLCMS and select the Connections tab.</li>
+							<li>If your tracker application is called <i>live-results</i>, the public results format is<br> <a href="">wss://<i>live-results</i>.fly.dev/ws</a></li>
+						</ul>
+						<li>The Shared Key set at the bottom of this page protects the communications between OWLCMS and TRACKER.
 					</ul>
 				""";
 			case PUBLICRESULTS ->
 				"""
 					<ul style="line-height: 1.4; width: 45em; margin: 0; padding-left: 1em;">
-						<li>PUBLICRESULTS is used to view scoreboards on phones (any device connected to the internet).
-						<li><u>You don't need PUBLICRESULTS if you don't want remote scoreboards.</u>
+						<li>PUBLICRESULTS is the legacy way is used to view scoreboards from the internet.
+						<li>PUBLICRESULTS is being replaced by TRACKER, which provides more features.</li>
 						<li>The Shared Key set at the bottom of this page protects the communications between OWLCMS and PUBLICRESULTS.
-					</ul>
-				""";
-			case TRACKER ->
-				"""
-					<ul style="line-height: 1.4; width: 45em; margin: 0; padding-left: 1em;">
-						<li><b>TRACKER is in preview mode. For now you need to run OWLCMS version 64 prerelease on your laptop, and configure your public results scoreboard or video data URLs using the websocket format </b><a href="">wss://<i>{tracker-app-name}</i>.fly.dev/ws</a>
-						<li>TRACKER is used to view scoreboards on phones (any device connected to the internet), to provide real-time video overlays, and to produce fancy documents. TRACKER is the next generation of PUBLICRESULTS, and will replace it.
-						<li><u>You don't need TRACKER if you don't want remote scoreboards.</u>
-						<li>The Shared Key set at the bottom of this page protects the communications between OWLCMS and TRACKER.
 					</ul>
 				""";
 			default -> "";
@@ -428,7 +449,7 @@ public class AppsView extends VerticalLayout {
 								}
 								app.setVersionInfo(updatedInfo);
 							}
-							flyCommands.appCreate(app, () -> doListApplications(apps, ui));
+						flyCommands.appCreate(app, () -> doSilentListRefresh(apps, ui));
 						} catch (NameTakenException e1) {
 							nameField.setErrorMessage(siteName + " is already taken.");
 							nameField.setInvalid(true);
@@ -469,7 +490,7 @@ public class AppsView extends VerticalLayout {
 		hl.add(versionInfo);
 
 		Button updateButton = new Button("Update",
-				e -> flyCommands.appDeploy(app, () -> doListApplications(apps, ui)));
+			e -> flyCommands.appDeploy(app, () -> doSilentListRefresh(apps, ui)));
 		if (updateRequired) {
 			updateButton.addThemeVariants(ButtonVariant.LUMO_PRIMARY);
 		}
@@ -478,13 +499,7 @@ public class AppsView extends VerticalLayout {
 		Button restartButton = new Button("Restart",
 				e -> {
 					flyCommands.appRestart(app);
-					try {
-						Thread.sleep(2000);
-					} catch (InterruptedException e1) {
-					}
-					doListApplications(apps, ui);
-				});
-
+			});
 		hl.add(restartButton);
 
 		ConfirmDialog deletionDialog = buildDeletionDialog(app,
@@ -598,18 +613,7 @@ public class AppsView extends VerticalLayout {
 			showOwlcmsApp = showApplication(owlcmsApp);
 			apps.add(showOwlcmsApp);
 		}
-		Div showPublicApp;
-		apps.add(new Hr());
 
-		if (publicApp != null) {
-			showPublicApp = showApplication(publicApp);
-			apps.add(showPublicApp);
-		} else {
-			publicApp = new App("", AppType.PUBLICRESULTS, getCurrentRegion(), "stable", null, null);
-			publicApp.setVersionInfo(new VersionInfo("stable"));
-			showPublicApp = showApplication(publicApp);
-			apps.add(showPublicApp);
-		}
 		Div showTrackerApp;
 		apps.add(new Hr());
 
@@ -622,6 +626,19 @@ public class AppsView extends VerticalLayout {
 					new VersionInfo("stable", "https://api.github.com/repos/jflamy/owlcms-tracker/releases"));
 			showTrackerApp = showApplication(trackerApp);
 			apps.add(showTrackerApp);
+		}
+
+		Div showPublicApp;
+		apps.add(new Hr());
+
+		if (publicApp != null) {
+			showPublicApp = showApplication(publicApp);
+			apps.add(showPublicApp);
+		} else {
+			publicApp = new App("", AppType.PUBLICRESULTS, getCurrentRegion(), "stable", null, null);
+			publicApp.setVersionInfo(new VersionInfo("stable"));
+			showPublicApp = showApplication(publicApp);
+			apps.add(showPublicApp);
 		}
 
 		// Show shared key section after TRACKER
