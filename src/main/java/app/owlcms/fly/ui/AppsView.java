@@ -203,16 +203,19 @@ public class AppsView extends VerticalLayout {
 				Map<AppType, App> apps2 = flyCommands.getApps();
 				App dbApp = apps2.get(AppType.DB);
 				if (dbApp != null) {
-				logDialog.append("Stopping OWLCMS " + app.name, UI.getCurrent());
+				logDialog.append("Suspending OWLCMS " + app.name, UI.getCurrent());
 				flyCommands.appStop(app, null);
-				logDialog.append("Stopping OWLCMS database " + dbApp.name, UI.getCurrent());
+				logDialog.append("Suspending OWLCMS database " + dbApp.name, UI.getCurrent());
 				flyCommands.appStop(dbApp, callback);
 			} else {
-				logDialog.append("Stopping OWLCMS - no database " + app.name, UI.getCurrent());
+				logDialog.append("Suspending OWLCMS - no database " + app.name, UI.getCurrent());
 					flyCommands.appStop(app, callback);
 				}
+			} else if (app.appType == AppType.TRACKER) {
+				logDialog.append("Suspending TRACKER " + app.name, UI.getCurrent());
+				flyCommands.appStop(app, callback);
 			} else {
-				logDialog.append("Stopping PUBLICRESULTS " + app.name, UI.getCurrent());
+				logDialog.append("Suspending PUBLICRESULTS " + app.name, UI.getCurrent());
 				flyCommands.appStop(app, callback);
 			}
 		});

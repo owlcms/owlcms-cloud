@@ -66,7 +66,8 @@ public class FlyCtlCommands {
 	}
 
 	public void appStop(App app, Runnable callback) {
-		doAppCommand(app, "fly machines stop " + app.machine + " --app " + app.name, callback);
+		// Use 'fly apps suspend' to ensure stop works regardless of auto_start_machines or min_machines_running settings
+		doAppCommand(app, "fly apps suspend " + app.name, callback);
 	}
 
 	public void appRestart(App app) {
