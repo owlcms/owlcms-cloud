@@ -475,7 +475,7 @@ public class AppsView extends VerticalLayout {
 		String rawVersion = app.getCurrentVersion();
 		String displayVersion = rawVersion + (rawVersion.matches("^[0-9].*$") ? "" : " (version number unknown)");
 		String latestVersion = getLatestReleaseVersion(app.appType);
-		boolean updateRequired = !rawVersion.equals(latestVersion) && !latestVersion.contains("unknown");
+		boolean updateRequired = app.isUpdateRequired();
 		VerticalLayout versionInfo = new VerticalLayout(a,
 				new Html(
 						"""
@@ -577,7 +577,7 @@ public class AppsView extends VerticalLayout {
 					sharedKeyField.setValue(generateRandomString(20));
 				});
 
-		Button sharedKeyButton = new Button("Set Shared Key and restart apps",
+		Button setSecretsButton = new Button("Set Secrets",
 				e -> {
 					if (sharedKeyField.getValue() == null || sharedKeyField.getValue().isBlank()) {
 						sharedKeyField.setErrorMessage("The shared key cannot be empty");
@@ -587,7 +587,12 @@ public class AppsView extends VerticalLayout {
 					}
 				});
 
-		controlsLayout.add(sharedKeyField, generateKeyButton, sharedKeyButton);
+		Button restartAppsButton = new Button("Restart Apps",
+				e -> {
+					flyCommands.restartAllApps();
+				});
+
+		controlsLayout.add(sharedKeyField, generateKeyButton, setSecretsButton, restartAppsButton);
 		contentDiv.add(controlsLayout);
 		sharedKeySection.add(contentDiv);
 

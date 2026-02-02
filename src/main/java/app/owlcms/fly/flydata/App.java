@@ -21,7 +21,12 @@ public class App implements Comparable<App> {
             this.versionInfo = new VersionInfo(version);
         }
         this.machine = machine;
-        this.stopped = status == null ? true : status.equalsIgnoreCase("stopped");
+        if (status == null) {
+            this.stopped = true;
+        } else {
+            String normalizedStatus = status.trim().toLowerCase();
+            this.stopped = normalizedStatus.equals("stopped") || normalizedStatus.equals("suspended");
+        }
     }
 
     @Override
